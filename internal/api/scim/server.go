@@ -20,17 +20,26 @@ func NewServer(config *conf.GlobalConfiguration) *Server {
 }
 
 func (srv *Server) ServiceProviderConfig(w http.ResponseWriter, r *http.Request) error {
-	return srv.notImplemented(w, r)
+	return notImplemented()
 }
 
 func (srv *Server) ResourceTypes(w http.ResponseWriter, r *http.Request) error {
-	return srv.notImplemented(w, r)
+	return notImplemented()
 }
 
 func (srv *Server) Schemas(w http.ResponseWriter, r *http.Request) error {
-	return srv.notImplemented(w, r)
+	return notImplemented()
 }
 
-func (srv *Server) notImplemented(w http.ResponseWriter, r *http.Request) error {
-	return protocol.Send(w, http.StatusNotImplemented, nil)
+func (srv *Server) NotFound(w http.ResponseWriter, r *http.Request) error {
+	return protocol.NewError(http.StatusNotFound, "", "Endpoint or resource does not exist")
+}
+
+func (srv *Server) MethodNotAllowed(w http.ResponseWriter, r *http.Request) error {
+	w.Header().Set("Allow", http.MethodGet)
+	return protocol.NewError(http.StatusMethodNotAllowed, "", "The request method is not supported by this endpoint")
+}
+
+func notImplemented() error {
+	return protocol.NewError(http.StatusNotImplemented, "", "The request endpoint is not implemented")
 }

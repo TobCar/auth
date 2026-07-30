@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/supabase/auth/internal/api/apierrors"
+	scimProtocol "github.com/supabase/auth/internal/api/scim/protocol"
 	"github.com/supabase/auth/internal/conf/confload"
 	"github.com/supabase/auth/internal/observability"
 )
@@ -139,6 +140,11 @@ func TestHandleResponseErrorConsolidatesLogs(t *testing.T) {
 			err:           &WeakPasswordError{Message: "Password is too weak"},
 			expectedError: "Password is too weak",
 			expectedCode:  string(apierrors.ErrorCodeWeakPassword),
+		},
+		{
+			name:          "scim error",
+			err:           scimProtocol.NewError(http.StatusNotFound, "", "Endpoint or resource does not exist"),
+			expectedError: "404: Endpoint or resource does not exist",
 		},
 		{
 			name:          "unhandled error",
