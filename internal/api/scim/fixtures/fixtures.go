@@ -11,3 +11,6 @@ var NotFound string
 
 //go:embed not_implemented.json
 var NotImplemented string
+
+//go:embed service_provider_config.json
+var ServiceProviderConfig string

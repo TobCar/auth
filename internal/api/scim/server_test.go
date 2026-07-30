@@ -6,18 +6,42 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/supabase/auth/internal/api/scim/fixtures"
 	"github.com/supabase/auth/internal/api/scim/protocol"
+	"github.com/supabase/auth/internal/conf"
 )
 
+func newServerFor(externalURL string) *Server {
+	return NewServer(&conf.GlobalConfiguration{
+		API: conf.APIConfiguration{ExternalURL: externalURL},
+	})
+}
+
 func TestServer(t *testing.T) {
-	srv := NewServer(nil)
+	srv := newServerFor("http://localhost:9999")
 	require.NotNil(t, srv)
+
+	t.Run("NewServer trims a trailing slash from the external URL", func(t *testing.T) {
+		location := newServerFor("https://auth.example.com/").serviceProviderConfig.Meta.Location
+
+		require.Equal(t, "https://auth.example.com"+BasePath+"/ServiceProviderConfig", location)
+	})
+
+	t.Run("ServiceProviderConfig", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, BasePath+"/ServiceProviderConfig", nil)
+		w := httptest.NewRecorder()
+
+		require.NoError(t, srv.ServiceProviderConfig(w, r))
+
+		require.Equal(t, http.StatusOK, w.Code)
+		require.Equal(t, protocol.MediaType, w.Header().Get("Content-Type"))
+		require.JSONEq(t, fixtures.ServiceProviderConfig, w.Body.String())
+	})
 
 	for _, tc := range []struct {
 		path    string
 		handler func(http.ResponseWriter, *http.Request) error
 	}{
-		{"ServiceProviderConfig", srv.ServiceProviderConfig},
 		{"ResourceTypes", srv.ResourceTypes},
 		{"Schemas", srv.Schemas},
 	} {

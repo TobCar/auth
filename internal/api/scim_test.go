@@ -12,10 +12,22 @@ import (
 	"github.com/supabase/auth/internal/storage"
 )
 
+const (
+	scimServiceProviderConfigPath = "/scim/v2/ServiceProviderConfig"
+	scimResourceTypesPath         = "/scim/v2/ResourceTypes"
+	scimSchemasPath               = "/scim/v2/Schemas"
+)
+
 var scimPaths = []string{
-	"/scim/v2/ServiceProviderConfig",
-	"/scim/v2/ResourceTypes",
-	"/scim/v2/Schemas",
+	scimServiceProviderConfigPath,
+	scimResourceTypesPath,
+	scimSchemasPath,
+}
+
+// scimNotImplementedPaths shrinks to empty as the endpoints land.
+var scimNotImplementedPaths = []string{
+	scimResourceTypesPath,
+	scimSchemasPath,
 }
 
 func TestSCIM(t *testing.T) {
@@ -57,7 +69,18 @@ func TestSCIM(t *testing.T) {
 
 		require.True(t, api.config.Experimental.ScimEnabled)
 
-		for _, path := range scimPaths {
+		t.Run(scimServiceProviderConfigPath, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, scimServiceProviderConfigPath, nil)
+			w := httptest.NewRecorder()
+
+			api.handler.ServeHTTP(w, r)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, scimProtocol.MediaType, w.Header().Get("Content-Type"))
+			require.JSONEq(t, scimFixtures.ServiceProviderConfig, w.Body.String())
+		})
+
+		for _, path := range scimNotImplementedPaths {
 			t.Run(path, func(t *testing.T) {
 				r := httptest.NewRequest(http.MethodGet, path, nil)
 				w := httptest.NewRecorder()
