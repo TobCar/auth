@@ -7,15 +7,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/api/scim/fixtures"
 )
+
+const notFoundError = `{
+	"schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+	"status": "404",
+	"detail": "Endpoint or resource does not exist"
+}`
 
 func TestNewError(t *testing.T) {
 	t.Run("serializes to JSON correctly", func(t *testing.T) {
 		body, err := json.Marshal(NewError(http.StatusNotFound, "", "Endpoint or resource does not exist"))
 
 		require.NoError(t, err)
-		assert.JSONEq(t, fixtures.NotFound, string(body))
+		assert.JSONEq(t, notFoundError, string(body))
 	})
 
 	t.Run("includes the scimType when one is given", func(t *testing.T) {
@@ -48,7 +53,7 @@ func TestErrorStatusCode(t *testing.T) {
 
 	t.Run("survives a round trip through JSON", func(t *testing.T) {
 		var scimErr Error
-		require.NoError(t, json.Unmarshal([]byte(fixtures.NotFound), &scimErr))
+		require.NoError(t, json.Unmarshal([]byte(notFoundError), &scimErr))
 
 		assert.Equal(t, http.StatusNotFound, scimErr.StatusCode())
 		assert.Equal(t, "404", scimErr.Status)

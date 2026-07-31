@@ -29,11 +29,11 @@ func (srv *Server) ServiceProviderConfig(w http.ResponseWriter, r *http.Request)
 }
 
 func (srv *Server) ResourceTypes(w http.ResponseWriter, r *http.Request) error {
-	return notImplemented()
+	return emptyList(w, r, []any{})
 }
 
 func (srv *Server) Schemas(w http.ResponseWriter, r *http.Request) error {
-	return notImplemented()
+	return emptyList(w, r, []any{})
 }
 
 func (srv *Server) NotFound(w http.ResponseWriter, r *http.Request) error {
@@ -45,6 +45,9 @@ func (srv *Server) MethodNotAllowed(w http.ResponseWriter, r *http.Request) erro
 	return protocol.NewError(http.StatusMethodNotAllowed, "", "The request method is not supported by this endpoint")
 }
 
-func notImplemented() error {
-	return protocol.NewError(http.StatusNotImplemented, "", "The request endpoint is not implemented")
+func emptyList[T any](w http.ResponseWriter, r *http.Request, resources []T) error {
+	if r.URL.Query().Get("filter") != "" {
+		return protocol.NewError(http.StatusForbidden, "", "Filtering is not supported on this endpoint")
+	}
+	return protocol.Send(w, http.StatusOK, protocol.NewListResponse(resources))
 }
