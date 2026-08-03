@@ -7,18 +7,26 @@ import (
 	"github.com/supabase/auth/internal/api/scim/core"
 	"github.com/supabase/auth/internal/api/scim/protocol"
 	"github.com/supabase/auth/internal/conf"
+	"github.com/supabase/auth/internal/models"
+	"github.com/supabase/auth/internal/storage"
 )
 
 const BasePath = "/scim/v2"
 
 type Server struct {
+	db                    *storage.Connection
+	users                 Mapper[*models.User, *core.User]
 	serviceProviderConfig *core.ServiceProviderConfig
 }
 
-func NewServer(config *conf.GlobalConfiguration) *Server {
+func NewServer(config *conf.GlobalConfiguration, db *storage.Connection) *Server {
+	baseURL := strings.TrimRight(config.API.ExternalURL, "/") + BasePath
+
 	return &Server{
+		db:    db,
+		users: NewUserMapper(baseURL),
 		serviceProviderConfig: core.NewServiceProviderConfig(
-			strings.TrimRight(config.API.ExternalURL, "/")+BasePath,
+			baseURL,
 			[]core.AuthenticationScheme{core.OAuthBearerToken().AsPrimary()},
 		),
 	}
