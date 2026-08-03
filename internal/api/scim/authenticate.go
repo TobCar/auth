@@ -7,6 +7,7 @@ import (
 
 	"github.com/supabase/auth/internal/api/scim/protocol"
 	"github.com/supabase/auth/internal/models"
+	"github.com/supabase/auth/internal/observability"
 )
 
 var providerKey = NewKey[*models.SSOProvider]("sso_provider")
@@ -30,6 +31,8 @@ func (srv *Server) Authenticate(w http.ResponseWriter, r *http.Request) (context
 	if !provider.IsEnabled() {
 		return nil, protocol.NewError(http.StatusForbidden, "", "SCIM is not available for this provider")
 	}
+
+	observability.LogEntrySetField(r, "sso_provider_id", provider.ID.String())
 
 	return providerKey.With(ctx, provider), nil
 }
