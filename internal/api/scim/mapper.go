@@ -18,21 +18,21 @@ func NewUserMapper(baseURL string) UserMapper {
 }
 
 func (m UserMapper) MapFrom(u *models.User) *core.User {
-	created, lastModified := u.CreatedAt.UTC(), u.UpdatedAt.UTC()
+	id, email := u.ID.String(), u.GetEmail()
 
 	user := &core.User{
 		Schemas:  []string{core.SchemaUser},
-		ID:       u.ID.String(),
-		UserName: u.GetEmail(),
+		ID:       id,
+		UserName: email,
 		Meta: core.Meta{
 			ResourceType: core.ResourceTypeUser,
-			Created:      &created,
-			LastModified: &lastModified,
-			Location:     m.baseURL + "/Users/" + u.ID.String(),
+			Created:      u.CreatedAt.UTC(),
+			LastModified: u.UpdatedAt.UTC(),
+			Location:     m.baseURL + "/Users/" + id,
 		},
 	}
 
-	if email := u.GetEmail(); email != "" {
+	if email != "" {
 		user.Emails = []core.Email{{Value: email, Primary: true}}
 	}
 

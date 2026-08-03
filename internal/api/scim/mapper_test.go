@@ -58,7 +58,7 @@ func TestUserMapper(t *testing.T) {
 
 		require.Equal(t, time.UTC, user.Meta.Created.Location())
 		require.True(t, user.Meta.Created.Equal(createdAt))
-		require.Equal(t, updatedAt, *user.Meta.LastModified)
+		require.Equal(t, updatedAt, user.Meta.LastModified)
 	})
 
 	t.Run("satisfies the Mapper interface", func(t *testing.T) {
