@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"net/http"
@@ -8,7 +9,9 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
+	"github.com/supabase/auth/internal/api/scim/core"
 	"github.com/supabase/auth/internal/api/scim/protocol"
 	"github.com/supabase/auth/internal/conf"
 )
@@ -50,21 +53,28 @@ func TestServer(t *testing.T) {
 	})
 
 	for _, tc := range []struct {
-		path    string
-		handler func(http.ResponseWriter, *http.Request) error
+		path, fixture string
+		id            string
+		list, byID    func(http.ResponseWriter, *http.Request) error
 	}{
-		{"ResourceTypes", srv.ResourceTypes},
-		{"Schemas", srv.Schemas},
+		{"ResourceTypes", "resource_type_user.json", string(core.ResourceTypeUser), srv.ResourceTypes, srv.ResourceTypeByID},
+		{"Schemas", "schema_user.json", string(core.SchemaUser), srv.Schemas, srv.SchemaByID},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, BasePath+"/"+tc.path, nil)
 			w := httptest.NewRecorder()
 
-			require.NoError(t, tc.handler(w, r))
+			require.NoError(t, tc.list(w, r))
 
 			require.Equal(t, http.StatusOK, w.Code)
 			require.Equal(t, protocol.MediaType, w.Header().Get("Content-Type"))
-			require.JSONEq(t, testFixture(t, "empty_list_response.json"), w.Body.String())
+
+			var body protocol.ListResponse[json.RawMessage]
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+
+			require.Equal(t, 1, body.TotalResults)
+			require.Len(t, body.Resources, 1)
+			require.JSONEq(t, testFixture(t, tc.fixture), string(body.Resources[0]))
 		})
 
 		t.Run(tc.path+" rejects filter query parameter", func(t *testing.T) {
@@ -73,10 +83,30 @@ func TestServer(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			var scimErr *protocol.Error
-			require.ErrorAs(t, tc.handler(w, r), &scimErr)
+			require.ErrorAs(t, tc.list(w, r), &scimErr)
 
 			require.Equal(t, http.StatusForbidden, scimErr.StatusCode())
 			requireMarshalsTo(t, testFixture(t, "filter_forbidden.json"), scimErr)
+		})
+
+		t.Run(tc.path+"/"+tc.id, func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			require.NoError(t, tc.byID(w, requestWithURLParam(tc.path+"/"+tc.id, "id", tc.id)))
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, protocol.MediaType, w.Header().Get("Content-Type"))
+			require.JSONEq(t, testFixture(t, tc.fixture), w.Body.String())
+		})
+
+		t.Run(tc.path+" returns a SCIM 404 for an unknown id", func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			var scimErr *protocol.Error
+			require.ErrorAs(t, tc.byID(w, requestWithURLParam(tc.path+"/Unknown", "id", "Unknown")), &scimErr)
+
+			require.Equal(t, http.StatusNotFound, scimErr.StatusCode())
+			requireMarshalsTo(t, testFixture(t, "not_found.json"), scimErr)
 		})
 	}
 
@@ -102,6 +132,15 @@ func TestServer(t *testing.T) {
 		require.Equal(t, http.MethodGet, w.Header().Get("Allow"))
 		requireMarshalsTo(t, testFixture(t, "method_not_allowed.json"), scimErr)
 	})
+}
+
+func requestWithURLParam(path, key, value string) *http.Request {
+	r := httptest.NewRequest(http.MethodGet, BasePath+"/"+path, nil)
+
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add(key, value)
+
+	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, routeCtx))
 }
 
 func requireMarshalsTo(t *testing.T, expected string, v any) {

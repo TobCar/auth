@@ -104,6 +104,25 @@ func TestSCIM(t *testing.T) {
 			})
 		}
 
+		for _, tc := range []struct {
+			path   string
+			schema string
+		}{
+			{scimResourceTypesPath + "/User", string(scimCore.SchemaResourceType)},
+			{scimSchemasPath + "/" + string(scimCore.SchemaUser), string(scimCore.SchemaSchema)},
+		} {
+			t.Run(tc.path, func(t *testing.T) {
+				r := httptest.NewRequest(http.MethodGet, tc.path, nil)
+				w := httptest.NewRecorder()
+
+				api.handler.ServeHTTP(w, r)
+
+				require.Equal(t, http.StatusOK, w.Code)
+				require.Equal(t, scimProtocol.MediaType, w.Header().Get("Content-Type"))
+				require.Contains(t, w.Body.String(), tc.schema)
+			})
+		}
+
 		t.Run("Returns a SCIM 404 for an unknown endpoint", func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/scim/v2/Unknown", nil)
 			w := httptest.NewRecorder()

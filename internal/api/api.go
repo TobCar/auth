@@ -458,7 +458,9 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 
 			r.Get("/ServiceProviderConfig", api.scim.ServiceProviderConfig)
 			r.Get("/ResourceTypes", api.scim.ResourceTypes)
+			r.Get("/ResourceTypes/{id}", api.scim.ResourceTypeByID)
 			r.Get("/Schemas", api.scim.Schemas)
+			r.Get("/Schemas/{id}", api.scim.SchemaByID)
 
 			r.With(api.scim.Authenticate).Get("/Users/{id}", api.scim.UserByID)
 		})
