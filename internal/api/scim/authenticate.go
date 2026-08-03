@@ -46,12 +46,12 @@ func parseBearerToken(header string) (string, bool) {
 		return "", false
 	}
 
-	fields := strings.Fields(rest)
-	if len(fields) != 1 {
+	token := strings.TrimSpace(rest)
+	if token == "" || strings.ContainsAny(token, " \t\r\n\v\f") {
 		return "", false
 	}
 
-	return fields[0], true
+	return token, true
 }
 
 func unauthorized(w http.ResponseWriter) error {
