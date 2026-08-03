@@ -1,10 +1,4 @@
-// Package core implements the SCIM 2.0 core schema defined in RFC 7643.
 package core
-
-const (
-	SchemaServiceProviderConfig       = "urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"
-	ResourceTypeServiceProviderConfig = "ServiceProviderConfig"
-)
 
 type SupportedFeature struct {
 	Supported bool `json:"supported"`
@@ -46,7 +40,7 @@ func (scheme AuthenticationScheme) AsPrimary() AuthenticationScheme {
 
 // ServiceProviderConfig is the schema defined in RFC 7643, Section 5.
 type ServiceProviderConfig struct {
-	Schemas               []string               `json:"schemas"`
+	Schemas               []SchemaURI            `json:"schemas"`
 	Patch                 SupportedFeature       `json:"patch"`
 	Bulk                  BulkFeature            `json:"bulk"`
 	Filter                FilterFeature          `json:"filter"`
@@ -59,11 +53,38 @@ type ServiceProviderConfig struct {
 
 func NewServiceProviderConfig(baseURL string, schemes []AuthenticationScheme) *ServiceProviderConfig {
 	return &ServiceProviderConfig{
-		Schemas:               []string{SchemaServiceProviderConfig},
+		Schemas:               []SchemaURI{SchemaServiceProviderConfig},
 		AuthenticationSchemes: append(make([]AuthenticationScheme, 0, len(schemes)), schemes...),
-		Meta: Meta{
-			ResourceType: ResourceTypeServiceProviderConfig,
-			Location:     baseURL + "/" + ResourceTypeServiceProviderConfig,
-		},
+		Meta:                  NewMeta(baseURL, ResourceTypeServiceProviderConfig, EndpointServiceProviderConfig, ""),
 	}
+}
+
+func (config *ServiceProviderConfig) SupportsPatch() *ServiceProviderConfig {
+	config.Patch.Supported = true
+	return config
+}
+
+func (config *ServiceProviderConfig) SupportsBulk(maxOperations, maxPayloadSize int) *ServiceProviderConfig {
+	config.Bulk = BulkFeature{Supported: true, MaxOperations: maxOperations, MaxPayloadSize: maxPayloadSize}
+	return config
+}
+
+func (config *ServiceProviderConfig) SupportsFilter(maxResults int) *ServiceProviderConfig {
+	config.Filter = FilterFeature{Supported: true, MaxResults: maxResults}
+	return config
+}
+
+func (config *ServiceProviderConfig) SupportsChangePassword() *ServiceProviderConfig {
+	config.ChangePassword.Supported = true
+	return config
+}
+
+func (config *ServiceProviderConfig) SupportsSort() *ServiceProviderConfig {
+	config.Sort.Supported = true
+	return config
+}
+
+func (config *ServiceProviderConfig) SupportsETag() *ServiceProviderConfig {
+	config.ETag.Supported = true
+	return config
 }

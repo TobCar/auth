@@ -14,7 +14,7 @@ func TestNewServiceProviderConfig(t *testing.T) {
 
 		config := NewServiceProviderConfig("", schemes)
 
-		require.Equal(t, []string{SchemaServiceProviderConfig}, config.Schemas)
+		require.Equal(t, []SchemaURI{SchemaServiceProviderConfig}, config.Schemas)
 		require.Equal(t, schemes, config.AuthenticationSchemes)
 	})
 
@@ -23,7 +23,7 @@ func TestNewServiceProviderConfig(t *testing.T) {
 
 		config := NewServiceProviderConfig(baseURL, nil)
 
-		require.Equal(t, "ServiceProviderConfig", config.Meta.ResourceType)
+		require.Equal(t, ResourceTypeServiceProviderConfig, config.Meta.ResourceType)
 		require.Equal(t, baseURL+"/ServiceProviderConfig", config.Meta.Location)
 	})
 
@@ -36,6 +36,24 @@ func TestNewServiceProviderConfig(t *testing.T) {
 		assert.False(t, config.ChangePassword.Supported)
 		assert.False(t, config.Sort.Supported)
 		assert.False(t, config.ETag.Supported)
+	})
+
+	t.Run("advertises each optional feature it is told to support", func(t *testing.T) {
+		config := NewServiceProviderConfig("", nil).
+			SupportsPatch().
+			SupportsBulk(1000, 1048576).
+			SupportsFilter(200).
+			SupportsChangePassword().
+			SupportsSort().
+			SupportsETag()
+
+		assert.True(t, config.Patch.Supported)
+		assert.True(t, config.ChangePassword.Supported)
+		assert.True(t, config.Sort.Supported)
+		assert.True(t, config.ETag.Supported)
+
+		assert.Equal(t, BulkFeature{Supported: true, MaxOperations: 1000, MaxPayloadSize: 1048576}, config.Bulk)
+		assert.Equal(t, FilterFeature{Supported: true, MaxResults: 200}, config.Filter)
 	})
 
 	t.Run("serializes authenticationSchemes as an array", func(t *testing.T) {

@@ -76,7 +76,7 @@ func TestSCIM(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, w.Code)
 			require.Equal(t, scimProtocol.MediaType, w.Header().Get("Content-Type"))
-			require.Contains(t, w.Body.String(), scimCore.SchemaServiceProviderConfig)
+			require.Contains(t, w.Body.String(), string(scimCore.SchemaServiceProviderConfig))
 		})
 
 		for _, path := range []string{scimResourceTypesPath, scimSchemasPath} {
@@ -208,6 +208,7 @@ func TestSCIMUsers(t *testing.T) {
 			"id": %q,
 			"userName": "a@example.com",
 			"emails": [{"value": "a@example.com", "primary": true}],
+			"active": true,
 			"meta": {
 				"resourceType": "User",
 				"created": %q,
@@ -215,7 +216,7 @@ func TestSCIMUsers(t *testing.T) {
 				"location": "%s/scim/v2/Users/%s"
 			}
 		}`,
-			scimCore.SchemaUser,
+			string(scimCore.SchemaUser),
 			a.user.ID,
 			a.user.CreatedAt.UTC().Format(time.RFC3339Nano),
 			a.user.UpdatedAt.UTC().Format(time.RFC3339Nano),
