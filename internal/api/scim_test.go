@@ -295,3 +295,46 @@ func TestSCIMUsers(t *testing.T) {
 		require.NotContains(t, w.Body.String(), scimProtocol.SchemaError)
 	})
 }
+
+func TestSCIMInfrastructureFailure(t *testing.T) {
+	var tenant *scimTenant
+	var conn *storage.Connection
+
+	api, _, err := setupAPIForTestWithCallback(func(cfg *conf.GlobalConfiguration, c *storage.Connection) {
+		if cfg != nil {
+			cfg.Experimental.ScimEnabled = true
+			return
+		}
+		conn = c
+		require.NoError(t, models.TruncateAll(c))
+		tenant = seedSCIMTenant(t, c, "scim_token_unreachable", "unreachable@example.com")
+	})
+	require.NoError(t, err)
+
+	rename := func(t *testing.T, from, to string) {
+		t.Helper()
+		require.NoError(t, conn.RawQuery("alter table "+from+" rename to "+to).Exec())
+	}
+
+	// Each table stands in for a database that fails one of the two queries a
+	// SCIM request makes, for a reason other than the row being absent.
+	for _, table := range []string{"sso_providers", "users"} {
+		t.Run("answers in the SCIM error form when "+table+" cannot be queried", func(t *testing.T) {
+			rename(t, table, table+"_renamed")
+			defer rename(t, table+"_renamed", table)
+
+			r := httptest.NewRequest(http.MethodGet, "/scim/v2/Users/"+tenant.user.ID.String(), nil)
+			r.Header.Set("Authorization", "Bearer "+tenant.token)
+			w := httptest.NewRecorder()
+			api.handler.ServeHTTP(w, r)
+
+			require.Equal(t, http.StatusInternalServerError, w.Code)
+			require.Equal(t, scimProtocol.MediaType, w.Header().Get("Content-Type"))
+			require.JSONEq(t, `{
+				"schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+				"detail": "Internal server error",
+				"status": "500"
+			}`, w.Body.String())
+		})
+	}
+}

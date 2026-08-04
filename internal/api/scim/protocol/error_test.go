@@ -2,6 +2,8 @@ package protocol
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -77,5 +79,43 @@ func TestErrorError(t *testing.T) {
 		var err error = NewError(http.StatusMethodNotAllowed, "", "")
 
 		require.EqualError(t, err, "405: Method Not Allowed")
+	})
+}
+
+func TestWrap(t *testing.T) {
+	t.Run("restates a foreign error as a SCIM server error", func(t *testing.T) {
+		body, err := json.Marshal(Wrap(errors.New("dial tcp: connection refused")))
+
+		require.NoError(t, err)
+		assert.JSONEq(t, `{
+			"schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+			"detail": "Internal server error",
+			"status": "500"
+		}`, string(body))
+	})
+
+	t.Run("keeps the cause out of the body but in the error", func(t *testing.T) {
+		cause := errors.New("dial tcp: connection refused")
+		wrapped := Wrap(cause)
+
+		assert.EqualError(t, wrapped, "500: Internal server error: dial tcp: connection refused")
+		assert.ErrorIs(t, wrapped, cause)
+	})
+
+	t.Run("leaves an error that already is a SCIM error alone", func(t *testing.T) {
+		scimErr := NewError(http.StatusForbidden, "", "Filtering is not supported on this endpoint")
+
+		require.Same(t, scimErr, Wrap(scimErr))
+	})
+
+	t.Run("leaves a wrapped SCIM error alone", func(t *testing.T) {
+		scimErr := NewError(http.StatusNotFound, "", "Resource not found")
+		nested := fmt.Errorf("while looking up the user: %w", scimErr)
+
+		require.Same(t, nested, Wrap(nested))
+	})
+
+	t.Run("stays nil", func(t *testing.T) {
+		require.NoError(t, Wrap(nil))
 	})
 }

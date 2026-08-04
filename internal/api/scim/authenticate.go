@@ -25,7 +25,7 @@ func (srv *Server) Authenticate(w http.ResponseWriter, r *http.Request) (context
 		if models.IsNotFoundError(err) {
 			return nil, unauthorized(w)
 		}
-		return nil, err
+		return nil, protocol.Wrap(err)
 	}
 
 	if !provider.IsEnabled() {

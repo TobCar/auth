@@ -22,7 +22,7 @@ func (srv *Server) UserByID(w http.ResponseWriter, r *http.Request) error {
 		if models.IsNotFoundError(err) {
 			return userNotFound()
 		}
-		return err
+		return protocol.Wrap(err)
 	}
 
 	return protocol.Send(w, http.StatusOK, srv.users.MapFrom(user))
