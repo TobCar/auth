@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -110,6 +111,9 @@ func TestSCIM(t *testing.T) {
 		}{
 			{scimResourceTypesPath + "/User", string(scimCore.SchemaResourceType)},
 			{scimSchemasPath + "/" + string(scimCore.SchemaUser), string(scimCore.SchemaSchema)},
+			// A URN's colons are legal to percent-encode in a path segment, and
+			// some clients do, so both spellings must reach the same schema.
+			{scimSchemasPath + "/" + strings.ReplaceAll(string(scimCore.SchemaUser), ":", "%3A"), string(scimCore.SchemaSchema)},
 		} {
 			t.Run(tc.path, func(t *testing.T) {
 				r := httptest.NewRequest(http.MethodGet, tc.path, nil)
